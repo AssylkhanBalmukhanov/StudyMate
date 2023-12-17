@@ -25,7 +25,7 @@ client = OpenAI(
 
 
 
-ai_role = "You are assistant that helps his student ace his UNT exam, answer the questions in the language of the request"
+ai_role = "You are assistant that helps his student ace his UNT exam, answer the question in english"
 
 admin_id = '1231797433'
 bot = telebot.TeleBot(token)
@@ -35,6 +35,27 @@ def menu(buttons):
     for button in buttons:
         markup.add(types.KeyboardButton(button))
     return markup
+@bot.message_handler(commands=['ask_ai'])
+def ask_ai(message):
+    # Ask the user to type their question
+    msg_bot = bot.send_message(message.chat.id, "Ask a question to AI. Type your question:")
+    
+    # Register the next step handler for the user's question
+    bot.register_next_step_handler(msg_bot, help_ai_voice_response)
+
+def help_ai_voice_response(message):
+    # Process the user's text question and get the AI response
+    response = ai_message(message.text)
+    
+    # Convert AI response to a voice message
+    tts = gTTS(text=response, lang='en')
+    voice_file = TemporaryFile()
+    tts.write_to_fp(voice_file)
+    voice_file.seek(0)
+
+    # Send the voice message back to the user
+    bot.send_voice(message.chat.id, voice_file)
+    
 
 def ai_message(message):
 	try:
@@ -51,32 +72,12 @@ def ai_message(message):
 
 	except Exception as e:
 		return f"An error occurred: {str(e)}"
-     
-@bot.message_handler(commands=['ask_ai'])
-def ask_ai(message):
-    markup = types.ReplyKeyboardMarkup(row_width=2)
-    text_option = types.KeyboardButton('Text Message')
-    voice_option = types.KeyboardButton('Voice Message')
-    markup.add(text_option, voice_option)
 
-    msg_bot = bot.send_message(message.chat.id, "Choose an option:", reply_markup=markup)
-    bot.register_next_step_handler(msg_bot, handle_ask_ai_option)
 
-def handle_ask_ai_option(message):
-    if message.text == 'Text Message':
-        msg_bot = bot.send_message(message.chat.id, "Enter your question:")
-        bot.register_next_step_handler(msg_bot, help_ai)
-    elif message.text == 'Voice Message':
-        bot.send_message(message.chat.id, "Send a voice recording:")
-        bot.register_next_step_handler(message, voice_query)
-    else:
-        bot.send_message(message.chat.id, "Invalid option. Please choose again.")
-        ask_ai(message)
 
-# Function to handle the /ask_ai command for text message
 def help_ai(message):
-    bot.reply_to(message, ai_message(message.text))
-          
+	bot.reply_to(message, ai_message(message.text))
+
 @bot.message_handler(commands=['report'])
 def report(msg):
     chat_id = msg.chat.id
@@ -94,6 +95,7 @@ def handle_report(message):
 def report_callback_handler(call):
     bot.send_message(call.message.chat.id, "Please enter your report:")
     bot.register_next_step_handler(call.message, handle_report)
+
 
 
 # Function to handle the /programming_courses command
@@ -114,22 +116,17 @@ def unt_topics(message):
 
 # Function to handle the chosen UNT topic
 def unt_topic_selected(message):
-    selected_topic = message.text.strip()
-
-    # Ask AI for an explanation asynchronously
-    explanation_prompt = f"Explain {selected_topic} with examples. Answer in the language of conversation ."
-    explanation =  ai_message(explanation_prompt)
-
-    # Send the explanation back to the user
+    selected_topic = message.text.strip()    
+    explanation_prompt = f"Explain {selected_topic} with examples. Answer in the english language ."
+    explanation = ai_message(explanation_prompt)
     bot.send_message(message.chat.id, f"{explanation}")
-
 
 # Function to handle the /start and /help commands
 @bot.message_handler(commands=['start', 'help'])
 def welcome(message):
     bot.reply_to(message, "Welcome! You can use the following commands:\n/ask_ai - Ask a question to AI\n/report - Report an issue\n/programming_courses - View programming courses\n/unt_topics - Choose a UNT topic(to see two or more topics repeat the process)")
-#tts and stt
 
+#tts and stt
 def text_to_speech (message):
 	# Get the text message
 	text = message.text
@@ -144,8 +141,8 @@ def text_to_speech (message):
 	audio.export(ogg_file, format="ogg")
 	ogg_file.seek(0)
 	bot.send_voice (message.chat.id, ogg_file)
+      
 def voice_query(message): 
-
 	if message.voice:
 		# Get the voice recording file
 		file_info = bot.get_file(message.voice.file_id)
@@ -165,4 +162,4 @@ def voice_query(message):
 
 
 
-bot.polling(none_stop=True
+bot.polling(none_stop=True)
